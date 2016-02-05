@@ -1,0 +1,163 @@
+/*================================================================================*/
+/*		FLAT TABLES												                                          */
+/*================================================================================*/
+/*sCA is short for STREET CHECKS ALL where Street Checks data had inicidents where individual was NOT charged*/
+CREATE TABLE sCA (
+	/*sCA_id serial primary key,*/
+	RIN integer,
+	RT text,
+	OCC_DATE text,
+	OCC_TIME text,
+	LOC text,
+	PIN integer,
+	DOB text,
+	SEX char,
+	REASON_CHECKED integer,
+	REASON_TEXT text,
+	X numeric,
+	Y numeric,
+	LON numeric,
+	LAT numeric
+);
+
+/*gOA = general occurrences all where instances of crimes*/
+CREATE TABLE gOA(
+	/*gOA_id serial primary key,*/
+	RIN integer,
+	UCR_Group text, /*if you know UCR_Cat you know UCR_Group so make xref table*/
+	UCR_Cat text,
+	EXP_TRANSLATION text, 
+	OCC_DATE text,
+	OCC_TIME text,
+	LOC text,
+	TRANSLATION text,
+	PIN integer,
+	DOB text,
+	SEX char,
+	X numeric,
+	Y numeric,
+	LON numeric,
+	LAT numeric
+);
+
+/*upload the csv files into the tables*/
+\COPY sCA from 'Z:\\DU Analytics Challenge\StreetChecksAll.csv' delimiter ',' csv header;
+\COPY gOA from 'Z:\\DU Analytics Challenge\GeneralOccurrencesAll.csv' delimiter ',' csv header;
+
+SELECT count(*)
+FROM ceberlco.gOA;
+
+SELECT count(*)
+FROM ceberlco.sCA;
+
+/*================================================================================*/
+/*CREATE QUERY OF PINs THAT HAVE MULTIPLE INCIDENTS AND ITS RELATIONSHIPS */
+/*================================================================================*/
+CREATE TABLE multRIN AS
+SELECT gOA.PIN, RIN, OCC_DATE, TRANSLATION, LON, LAT, X, Y
+FROM gOA, ( SELECT PIN
+	FROM gOA
+	GROUP BY PIN
+	HAVING count(PIN) > 1
+	ORDER BY PIN ASC) as mult
+WHERE gOA.PIN=mult.PIN
+ORDER BY PIN ASC;
+
+
+/*drop table if exists multRIN;*/
+
+
+/*================================================================================*/
+/*   ERRORS IN PINS DUE TO INCONSISTENT SEX AND DOB VALUES PER UNIQUE PINS        */
+/*================================================================================*/
+/*table that holds PIN, DOB, and SEX of individuals with multiple incidents*/
+create table temp1 as
+SELECT PIN, DOB, SEX, count(PIN) 
+FROM ceberlco.sCA
+GROUP BY PIN, DOB, SEX
+HAVING count(PIN) > 1
+ORDER BY PIN ASC;
+
+/*table that holds all people with errors in personal info*/
+create table temp2 as
+SELECT DISTINCT sCA.PIN, sCA.DOB, sCA.SEX 
+FROM sCA, (SELECT DISTINCT PIN, count(PIN)
+		FROM temp1
+		GROUP BY PIN
+		HAVING count(PIN) > 1
+		ORDER BY PIN ASC) AS mult
+WHERE sCA.PIN=mult.PIN
+ORDER BY PIN ASC;
+
+SELECT COUNT(DISTINCT PIN)
+FROM temp2;
+/*There are 190 PINS that have mismatched information whether DOB or SEX*/
+
+/* only pin and sex of list of people with errors*/
+create table temp3 as
+SELECT DISTINCT PIN, SEX
+FROM temp2;
+
+/* table of people with gender as personal info error*/
+create table temp4 as
+SELECT DISTINCT sCA.PIN, sCA.DOB, sCA.SEX, mult.GEND 
+FROM sCA, (SELECT PIN, SEX as GEND
+		FROM temp3) as mult
+WHERE sCA.PIN=mult.PIN AND mult.GEND != sCA.SEX
+ORDER BY PIN ASC;
+
+SELECT COUNT(DISTINCT PIN)
+FROM temp4;
+/*190 rows so 16 pins have differing gender and are shown in table temp4. NOTE: the gender factors are M, F, and U */
+
+/* table of mismatched DOB*/
+CREATE TABLE temp5 as 
+SELECT temp2.PIN, DOB, birthday 
+FROM temp2, (SELECT PIN, DOB as birthday
+		   FROM temp2) AS badapples
+WHERE temp2.PIN=badapples.PIN AND DOB != birthday;
+
+SELECT COUNT(DISTINCT PIN)
+FROM temp5;
+/*175 PINS have errors due to errors in DOB*/
+
+drop table if exists temp1;
+drop table if exists temp3;
+
+/*now for gOA*/
+create table temp0 as
+SELECT PIN, DOB, SEX, count(PIN) 
+FROM ceberlco.gOA
+GROUP BY PIN, DOB, SEX
+HAVING count(PIN) > 1
+ORDER BY PIN ASC;
+
+/*table that holds all people with errors in personal info*/
+create table temp1 as
+SELECT DISTINCT gOA.PIN, gOA.DOB, gOA.SEX 
+FROM gOA, (SELECT DISTINCT PIN, count(PIN)
+		FROM temp0
+		GROUP BY PIN
+		HAVING count(PIN) > 1
+		ORDER BY PIN ASC) AS mult
+WHERE gOA.PIN=mult.PIN
+ORDER BY PIN ASC;
+
+SELECT COUNT(DISTINCT PIN)
+FROM temp1;
+/*There are 594 PINS that have mismatched information whether DOB or SEX*/
+
+/*combine problem pins from both sca and goa*/
+CREATE TABLE problemPINS as
+SELECT * FROM temp1 
+UNION ALL 
+SELECT * FROM temp2;
+
+SELECT COUNT(DISTINCT PIN)
+FROM problemPINS;
+/*total of 722 unique pins that have errors out of a total of 415,177 unique pins*/
+
+
+
+
+
