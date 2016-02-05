@@ -51,6 +51,7 @@ goa_factorize <- function(data){
   #shows up as a fifth category even though it's just missing an 's' at the end
   data$ucr_group[which(data$ucr_group=="Public Disorder Crime")] <- "Public Disorder Crimes"
   data$ucr_group <- as.factor(data$ucr_group)
+  data$exp_translation <- as.factor(data$exp_translation)
   return(data)
 }
 getSCA <- function(){
