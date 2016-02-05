@@ -1,3 +1,6 @@
+
+mapcolorado <- get_map(location = c(lon = mean(df2$long), lat = mean(df2$latit)), zoom = 11, maptype = "satellite", scale = 2)
+
 # plotting the map with some points on it
 ggmap(mapcolorado) +
   geom_point(data = df2, aes(x = long, y = latit, fill = "red", alpha = 0.8), size = 2, shape = 21) +
