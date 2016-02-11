@@ -1,19 +1,20 @@
 # Installing packages and masking functions --------------------
 rm(list=ls())
-list.of.packages <- c("dplyr", "stringr","ggmap","RPostgreSQL")
+list.of.packages <- c("dplyr", "stringr","ggmap","RPostgreSQL","lubridate")
 new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
 if(length(new.packages)) install.packages(new.packages)
 lapply(list.of.packages, require, character.only = TRUE)
 select <- dplyr::select
 rm(list.of.packages,new.packages)
 # Defining functions to be used --------------------
-getGOA <- function(){
+goa.get <- function(){
   #Syntax: goa <- getGOA()
   my_db  <- src_postgres(dbname="csci403",host="flowers.mines.edu",user="ceberlco",password=.rs.askForPassword("DB Pass?"))
   return(as.data.frame(tbl(my_db,"goa"),n=-1))
 }
-goa_cleanDates <- function(data){
-  #This is specifically for GOA! It cleans the occ_date, occ_time, and dob columns
+goa.clean <- function(data){
+  #This is specifically for GOA! It cleans and formats
+  #Fixing the date and time
   colonifier <- function(s){
     #The occ_time column is unstructed numbers, but can be made into "time-like" characters
     #then turned into POSIX objects, i.e. actual R time data type
@@ -21,47 +22,43 @@ goa_cleanDates <- function(data){
     if(str_length(s)==1){
       paste("00:0",s,sep="")    
     } else if(str_length(s)==2){
-        paste("00:",s,sep="")
+      paste("00:",s,sep="")
     } else if(str_length(s)==3){
-        paste("0",str_sub(s,1,1),":",str_sub(s,2,3),sep="")
+      paste("0",str_sub(s,1,1),":",str_sub(s,2,3),sep="")
     } else if(str_length(s)==4){
-        paste(str_sub(s,1,2),":",str_sub(s,3,4),sep="")
+      paste(str_sub(s,1,2),":",str_sub(s,3,4),sep="")
     } else {
-        return(NA)
+      return(NA)
     }
   }
-
-  data$occ_date <- str_sub(data$occ_date,start=1,end=-6)
-  data$occ_time <- unlist(lapply(X = data$occ_time, FUN = colonifier))
-  temp <- str_join(data$occ_date, data$occ_time,sep=" ")
-  data$occ_date <- strptime(temp,format="%m/%d/%Y %H:%M")
-  data$occ_date <- as.POSIXct(data$occ_date)
-  #This line above is because of the following error: https://github.com/hadley/dplyr/issues/859
-  data <- data[,-6]
-  data$dob <- str_sub(data$dob,start=1,end=-6)
-  data$dob <- as.Date(data$dob,format="%m/%d/%Y")
-  return(data)
-}
-goa_factorize <- function(data){
+  d <- str_sub(data$occ_date,start=1,end=-6)
+  t <- unlist(lapply(X = data$occ_time, FUN = colonifier))
+  data$occ_date <- lubridate::mdy_hm(str_join(d,t,sep=" ") ,tz = "MST")
+  data <- data %>% select(-c(occ_time))
+  #Fixing date of birth
+  b <- str_sub(data$dob,start=1,end=-6)
+  data$dob <- lubridate::mdy(b,tz="MST")
+  #Fixing sex
   data$sex <- as.factor(data$sex)
+  #Fixing translation 
+  data$translation <- str_trim(as.factor(data$translation),side=c("right"))
   data$translation <- as.factor(data$translation)
-  data$translation <- str_trim(data$translation,side=c("right"))
+  #Fixing ucr_cat
   data$ucr_cat <- as.factor(data$ucr_cat)
-  #Have to add a bit of manual cleaning here after having looked at the levels of ucr_group: there is one that is misspelt, so it
-  #shows up as a fifth category even though it's just missing an 's' at the end
+  #Fixing ucr_group
   data$ucr_group[which(data$ucr_group=="Public Disorder Crime")] <- "Public Disorder Crimes"
   data$ucr_group <- as.factor(data$ucr_group)
-  data$exp_translation <- as.factor(data$exp_translation)
+  levels(data$ucr_group)[4] <- NA
   return(data)
 }
-getSCA <- function(){
+sca.get <- function(){
   #Syntax: sca <- getSCA()
   my_db  <- src_postgres(dbname="csci403",host="flowers.mines.edu",user="ceberlco",password=.rs.askForPassword("DB Pass?"))
   return(as.data.frame(tbl(my_db,"sca"),n=-1))
 }
-sca_cleanDates <- function(data){
-  #This is specifically for SCA! It cleans the occ_date, occ_time, and dob columns. It's being a jerk, 
-  #so I have to come up with a different funcitonality. 
+sca.clean<- function(data){
+  #This is specifically for SCA! It cleans and formats 
+  #Fixing date and time
   colonifier <- function(s){
     #The occ_time column is unstructed numbers, but can be made into "time-like" characters
     #then turned into POSIX objects, i.e. actual R time data type
@@ -83,32 +80,62 @@ sca_cleanDates <- function(data){
   s[which(str_length(s)==2)] <- colonifier(s[which(str_length(s)==2)])
   s[which(str_length(s)==3)] <- colonifier(s[which(str_length(s)==3)])
   s[which(str_length(s)==4)] <- colonifier(s[which(str_length(s)==4)])
-  
-  data$occ_date <- str_sub(data$occ_date,start=1,end=-9)
-  data$occ_time <- s
-  temp <- str_join(data$occ_date, data$occ_time,sep=" ")
-  data$occ_date <- strptime(temp,format="%m/%d/%Y %H:%M")
-  data$occ_date <- as.POSIXct(data$occ_date)
-  #This line above is because of the following error: https://github.com/hadley/dplyr/issues/859
-  data <- data[,-4]
-  data <- data[,-2]
-  data$dob <- str_sub(data$dob,start=1,end=-9)
-  data$dob <- as.Date(data$dob,format="%m/%d/%Y")
-  return(data)
-}
-sca_factorize <- function(data){
+  d <- str_sub(data$occ_date,start=1,end=-6)
+  data$occ_date <-lubridate::mdy_hm(str_join(d,s,sep=" ") ,tz = "MST")
+  data <- data %>% select(-c(rt,occ_time))
+  #Fixing date of birth 
+  b <- str_sub(data$dob,start=1,end=-6)
+  data$dob <- lubridate::mdy(b,tz="MST")
+  #Fixing sex 
   data$sex <- as.factor(data$sex)
+  #Fixing reason checked and reason checked text 
   data$reason_checked <- as.factor(data$reason_checked)
   data$reason_text <- as.factor(data$reason_text)
   return(data)
 }
 # Clean goa --------------------
-goa <- getGOA()
-goa <- goa_cleanDates(goa) 
-goa <- goa_factorize(goa)
+g <- goa.get()
+goa <- goa.clean(g)
 glimpse(goa)
 # Clean sca -------------------- 
-sca <- getSCA()
-sca <- sca_cleanDates(sca)
-sca <- sca_factorize(sca)
+s <- sca.get()
+sca <- sca.clean(s)
 glimpse(sca)
+
+
+# If the above does not function, grab the csv from Excel and clean --------------------
+test <- read.csv(paste(getwd(),"/GeneralOccurrencesAll2.csv",sep=""),header=T,sep=",")
+excel_clean <- function(data){
+  data$TRANSLATION <- str_trim(data$TRANSLATION,side=c("right"))
+  data$TRANSLATION <- as.factor(data$TRANSLATION)
+  data$UCR_Cat <- as.factor(data$UCR_Cat)
+  #Have to add a bit of manual cleaning here after having looked at the levels of ucr_group: there is one that is misspelt, so it
+  #shows up as a fifth category even though it's just missing an 's' at the end
+  data$UCR_Group[which(data$UCR_Group=="Public Disorder Crime")] <- "Public Disorder Crimes"
+  levels(data$UCR_Group)[4] <- NA
+  
+  colonifier <- function(s){
+    #The occ_time column is unstructed numbers, but can be made into "time-like" characters
+    #then turned into POSIX objects, i.e. actual R time data type
+    options(warn=-1)
+    if(str_length(s)==1){
+      paste("00:0",s,sep="")    
+    } else if(str_length(s)==2){
+      paste("00:",s,sep="")
+    } else if(str_length(s)==3){
+      paste("0",str_sub(s,1,1),":",str_sub(s,2,3),sep="")
+    } else if(str_length(s)==4){
+      paste(str_sub(s,1,2),":",str_sub(s,3,4),sep="")
+    } else {
+      return(NA)
+    }
+  }
+  
+  d <- str_sub(data$OCC_DATE,start=1,end=-6)
+  t <- unlist(lapply(X = data$OCC_TIME, FUN = colonifier))
+  data$OCC_DATE <- lubridate::mdy_hm(str_join(d,t,sep=" ") ,tz = "MST")
+  data <- data %>% select(-c(OCC_TIME))
+  colnames(data) <- tolower(colnames(data))
+  return(data)
+}
+goa <- excel_clean(test)
