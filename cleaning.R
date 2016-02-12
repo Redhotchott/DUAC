@@ -48,7 +48,6 @@ goa.clean <- function(data){
   #Fixing ucr_group
   data$ucr_group[which(data$ucr_group=="Public Disorder Crime")] <- "Public Disorder Crimes"
   data$ucr_group <- as.factor(data$ucr_group)
-  levels(data$ucr_group)[4] <- NA
   return(data)
 }
 sca.get <- function(){
