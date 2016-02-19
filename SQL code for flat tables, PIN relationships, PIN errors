@@ -40,10 +40,34 @@ CREATE TABLE gOA(
 	LAT numeric
 );
 
+/*general occurrences with better longitude and latitude done by Ryan*/
+CREATE TABLE crimeTable(
+	RIN numeric,
+	UCR_Group text, 
+	UCR_Cat text,
+	EXP_TRANSLATION text, 
+	OCC_DATE text,
+	OCC_TIME text,
+	LOC text,
+	TRANSLATION text,
+	PIN numeric,
+	DOB text,
+	SEX char,
+	X numeric,
+	Y numeric,
+	LON numeric,
+	LAT numeric,
+	Xtransformed numeric,
+	Ytransformed numeric,
+	Latitude numeric,
+	Longitude numeric
+);
+
+
 /*upload the csv files into the tables*/
 \COPY sCA from 'Z:\\DU Analytics Challenge\StreetChecksAll.csv' delimiter ',' csv header;
 \COPY gOA from 'Z:\\DU Analytics Challenge\GeneralOccurrencesAll.csv' delimiter ',' csv header;
-
+\copy crimeTable from crime.csv delimiter ',' csv header; /*saved on a flash drive*/
 SELECT count(*)
 FROM ceberlco.gOA;
 
