@@ -8,9 +8,10 @@ select <- dplyr::select
 rm(list.of.packages,new.packages)
 # Defining functions to be used --------------------
 goa.get <- function(){
+  #The modified GOA data with better longitude and latitude is saved under crimeTable so will be replacing GOA with crimeTable
   #Syntax: goa <- getGOA()
   my_db  <- src_postgres(dbname="csci403",host="flowers.mines.edu",user="ceberlco",password=.rs.askForPassword("DB Pass?"))
-  return(as.data.frame(tbl(my_db,"goa"),n=-1))
+  return(as.data.frame(tbl(my_db,"crimetable"),n=-1))
 }
 goa.clean <- function(data){
   #This is specifically for GOA! It cleans and formats
