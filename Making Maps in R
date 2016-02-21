@@ -1,0 +1,74 @@
+#http://www.kevjohnson.org/making-maps-in-r/
+#http://r-video-tutorial.blogspot.com/2015/05/interactive-maps-of-crime-data-in.html
+
+# Installing packages and masking functions --------------------
+rm(list=ls())
+list.of.packages <- c("dplyr", "stringr","ggmap", "RPostgreSQL")
+new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
+if(length(new.packages)) install.packages(new.packages)
+lapply(list.of.packages, require, character.only = TRUE)
+select <- dplyr::select
+rm(list.of.packages,new.packages)
+# Defining functions to be used --------------------
+getGOA <- function(){
+  #Syntax: goa <- getGOA()
+  my_db  <- src_postgres(dbname="csci403",host="flowers.mines.edu",user="ceberlco",password=.rs.askForPassword("DB Pass?"))
+  return(as.data.frame(tbl(my_db,"crimetable"),n=-1))
+}
+goa <- getGOA()
+
+#install.packages()
+list.of.packages <- c("rgdal", "raster","maptools", "plotrix", "sp", "plotGoogleMaps", "jpeg")
+new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
+if(length(new.packages)) install.packages(new.packages)
+lapply(list.of.packages, require, character.only = TRUE)
+select <- dplyr::select
+rm(list.of.packages,new.packages)
+
+setwd("Z:/DU Analytics Challenge")
+getwd()
+
+###############################################
+# PLOTTING USING SHAPE FILE
+###############################################
+#download.file("http://data.denvergov.org/download/gis/statistical_neighborhoods/shape/statistical_neighborhoods.zip", destfile = "statistical_neighborhoods.zip")
+#unzip("statistical_neighborhoods.zip", exdir=Z:/DU Analytics Challenge)
+border<-shapefile("Z:/DU Analytics Challenge/statistical_neighborhoods.shp")
+
+crime<-goa[!is.na(goa$longitude)&!is.na(goa$latitude),]
+crime$pin<-as.factor(crime$pin)
+crime$rin<-as.factor(crime$rin)
+crime$ucr_cat<-as.factor(crime$ucr_cat)
+crime$translation <-as.factor(crime$translation)
+coordinates(crime)=~longitude+latitude
+
+projection(crime) = projection(border)
+overlay<-over(crime, border)
+crime$over<-overlay$OBJECTID_1
+plot(crime,pch="+",cex=0.5,main="",col=crime$ucr_cat)
+
+jpeg("Drug_plot.jpg",2500,2000,res=300)
+projection(Drugs) = projection(border)
+overlay<-over(Drugs, border)
+Drugs$over<-overlay$OBJECTID_1
+plot(Drugs,pch="+",cex=0.5,main="",col=Drugs$translation)
+legend("bottomright",pch="+",col=unique(Drugs$translation),legend=unique(Drugs$translation),cex=0.4)
+dev.off()
+
+###############################################
+# PLOTTING USING GOOGLE
+###############################################
+#This is NOT working
+
+Drugs <- crime[crime$ucr_cat==unique(crime$ucr_cat)[13],]
+Drugs <- remove.duplicates(Drugs)
+plot(Gest(Drugs.ppp),main="Drug Related Crimes") #clustered distribution
+
+window <- as.owin(border)
+Drugs.ppp <- ppp(x=Drugs@coords[,1],y=Drugs@coords[,2], window=window)
+DenUTM <- spTransform(crime,CRS("+init=epsg:32613"))
+Density <- density.ppp(Drugs.ppp, sigma = 500,edge=T, W=as.mask(window))
+Density.raster <- raster(Density)
+projection(Density.raster)=projection(DenUTM)
+m<-plotGoogleMaps(Density.raster,filename="Crimes_Density_Drugs.htm",layerName="Number of Drug Incidents", fillOpacity=0.4,strokeWeight=0,colPalette=rev(heat.colors(10)))
+
