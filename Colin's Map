@@ -1,4 +1,5 @@
 # plotting the map with some points on it
-ggmap(mapcolorado) +
-  geom_point(data = df2, aes(x = long, y = latit, fill = "red", alpha = 0.8), size = 2, shape = 21) +
+mapcolorado<-get_map(location="Denver")
+ggmap(mapcolorado) + 
+  geom_point(data = SpatialPoints(), aes(x = Larceny@coords[,1], y=Larceny@coords[,2], fill = "red", alpha = 0.8), size = 2, shape = 21) +
   guides(fill=FALSE, alpha=FALSE, size=FALSE)
