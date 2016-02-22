@@ -39,6 +39,7 @@ crime$pin<-as.factor(crime$pin)
 crime$rin<-as.factor(crime$rin)
 crime$ucr_cat<-as.factor(crime$ucr_cat)
 crime$translation <-as.factor(crime$translation)
+Crimes<-crime
 coordinates(crime)=~longitude+latitude
 
 #projection(crime) = projection(border)
@@ -54,7 +55,8 @@ coordinates(crime)=~longitude+latitude
 ###############################################
 # PLOTTING USING GOOGLE
 ###############################################
-Drugs <- crime[crime$ucr_cat==unique(crime$ucr_cat)[13],]
+#3 Larceny, 8 Theft from MV, 7&9 Assault(simple and aggravated), 5 burglary, 20 mv theft, 17 drugs
+Drugs <- crime[crime$ucr_cat==unique(crime$ucr_cat)[3],]
 Drugs <- remove.duplicates(Drugs)
 
 window <- as.owin(border)
@@ -74,15 +76,17 @@ crime$ucr_cat<-as.factor(crime$ucr_cat)
 crime$translation <-as.factor(crime$translation)
 coordinates(crime)=~longitude+latitude
 
-Drugs <- crime[crime$ucr_cat==unique(crime$ucr_cat)[13],]
+Drugs <- crime[crime$ucr_cat==unique(crime$ucr_cat)[17],]
 projection(Drugs) = projection(border)
 overlay<-over(Drugs, border)
 Drugs$over<-overlay$OBJECTID_1
 
-jpeg("Drugs_plot.jpg",2500,2000,res=300)
+jpeg("Larceny_plot.jpg",2500,2000,res=300)
 plot(Drugs,pch="+",cex=0.5,main="",col=Drugs$translation)
 #plot(Drugs,add=T)
 legend("bottomright",pch="+",col=unique(Drugs$translation),legend=unique(Drugs$translation),cex=0.4)
 dev.off()
 
-plot(Gest(Drugs.ppp),main="Drug Related Crimes") #clustered distribution
+jpeg("Larceny_Nearest_Neighbor_Distance_Function_G.jpg", 1000,1000, res=200)
+plot(Gest(Drugs.ppp),main="Larceny Related Crimes") #clustered distribution
+dev.off()
