@@ -66,7 +66,7 @@ plot(Gest(Drugs.ppp),main="Drug Related Crimes") #clustered distribution
 
 window <- as.owin(border)
 Drugs.ppp <- ppp(x=Drugs@coords[,1],y=Drugs@coords[,2], window=window)
-DenUTM <- spTransform(crime,CRS("+init=epsg:32613"))
+DenUTM <- spTransform(crime,CRS("+proj=longlat +datum=WGS84"))
 Density <- density.ppp(Drugs.ppp, sigma = 500,edge=T, W=as.mask(window))
 Density.raster <- raster(Density)
 projection(Density.raster)=projection(DenUTM)
