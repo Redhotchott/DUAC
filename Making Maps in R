@@ -58,7 +58,6 @@ dev.off()
 ###############################################
 # PLOTTING USING GOOGLE
 ###############################################
-#This is NOT working
 
 Drugs <- crime[crime$ucr_cat==unique(crime$ucr_cat)[13],]
 Drugs <- remove.duplicates(Drugs)
